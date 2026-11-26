@@ -1,0 +1,445 @@
+// CrossMail 对外接口契约（S5-01）
+//
+// 这份 UDL 是跨语言的**唯一契约**：Kotlin / Swift / Python 绑定全部由它生成。
+// Rust 侧只提供同名同形的普通类型与函数（见 src/lib.rs、src/engine.rs），
+// scaffolding 在编译期直接引用它们——字段或签名对不上就是编译错误，
+// 不会出现「绑定调用了不存在的符号、编译期不报、运行期才崩」的情况。
+//
+// 线程模型：以下接口全部是**同步阻塞**的（本地 SQLite + 文件缓存）。
+// Kotlin 侧请在 Dispatchers.IO 调用，Swift 侧请在 detached task 调用，
+// 不要在主线程直接调。之所以不做 async：uniffi 0.28 的 UDL async 需要额外
+// 运行时约定，稳定性不如同步接口，而 UI 侧包一层线程调度成本极低。
+
+namespace crossmail_ffi {
+  // 核心库版本与协议展示名（设置页/关于页用）
+  CoreStatus core_status();
+  string protocol_display_name(string protocol);
+
+  // 打开引擎：建库、迁移、准备缓存与凭证仓
+  [Throws=CrossMailError]
+  CrossMailEngine open_engine(EngineConfig config);
+};
+
+// ---------------------------------------------------------------- 错误
+
+// 统一错误：每个变体都带人类可读文本（含用户提示 + 技术细节），
+// UI 可直接展示 message，也可按类型精确分派。
+[Error]
+interface CrossMailError {
+  InvalidInput(string message);
+  Authentication(string message);
+  Network(string message);
+  Protocol(string message);
+  Quota(string message);
+  Conflict(string message);
+  NotFound(string message);
+  Storage(string message);
+  Cancelled(string message);
+  Unsupported(string message);
+  RateLimited(string message);
+  Tls(string message);
+  Parse(string message);
+  Server(string message);
+};
+
+// ---------------------------------------------------------------- 枚举
+
+enum ProtocolKindDto {
+  "Jmap",
+  "Imap",
+};
+
+enum SecurityModeDto {
+  "ImplicitTls",
+  "StartTls",
+};
+
+enum MailboxRoleDto {
+  "Inbox",
+  "Sent",
+  "Trash",
+  "Archive",
+  "Drafts",
+  "Junk",
+  "Other",
+};
+
+enum SearchScopeDto {
+  "All",
+  "Subject",
+  "From",
+  "To",
+};
+
+// 自定义关键词 / Gmail 标签带值，所以用 sealed 形式而非普通 enum
+[Enum]
+interface FlagDto {
+  Seen();
+  Flagged();
+  Answered();
+  Draft();
+  Deleted();
+  Custom(string value);
+};
+
+// ---------------------------------------------------------------- 配置
+
+dictionary EngineConfig {
+  // SQLite 文件路径；传 ":memory:" 走内存库（仅测试/演示）
+  string db_path;
+  // 正文与附件的落盘目录
+  string cache_dir;
+  // 缓存配额（字节），超出后按 LRU 淘汰
+  u64 cache_quota_bytes;
+  // 主密钥 base64。生产环境由平台密钥库（DPAPI / Android Keystore）提供；
+  // 传 null 表示本进程随机生成（仅开发调试，重启后旧凭证不可解）
+  string? master_key_b64;
+};
+
+// ---------------------------------------------------------------- 数据结构
+
+dictionary CoreStatus {
+  string version;
+  sequence<string> supported_protocols;
+};
+
+dictionary AddressDto {
+  string? name;
+  string email;
+};
+
+dictionary AttachmentDto {
+  string id;
+  string? file_name;
+  string content_type;
+  u64 size;
+  boolean is_inline;
+  string? content_id;
+};
+
+dictionary EmailDto {
+  string id;
+  string account_id;
+  sequence<string> mailbox_ids;
+  string? thread_id;
+  string subject;
+  sequence<AddressDto> from;
+  sequence<AddressDto> to;
+  sequence<AddressDto> cc;
+  sequence<AddressDto> bcc;
+  sequence<AddressDto> reply_to;
+  string? message_id;
+  string? in_reply_to;
+  sequence<string> references;
+  timestamp? sent_at;
+  timestamp received_at;
+  string preview;
+  string? text_body;
+  string? html_body;
+  sequence<AttachmentDto> attachments;
+  sequence<FlagDto> flags;
+  u64 size;
+};
+
+dictionary EmailQueryDto {
+  string? mailbox_id;
+  boolean unread_only;
+  u32 limit;
+  u32 offset;
+};
+
+dictionary EmailPageDto {
+  sequence<EmailDto> items;
+  u32 total;
+  u32? next_offset;
+};
+
+dictionary MailboxDto {
+  string id;
+  string account_id;
+  string name;
+  string? parent_id;
+  MailboxRoleDto role;
+  u64 total;
+  u64 unread;
+};
+
+dictionary MailboxCountDto {
+  string mailbox_id;
+  u64 unread;
+};
+
+dictionary AccountDto {
+  string id;
+  string email_address;
+  string? display_name;
+  ProtocolKindDto protocol;
+  string? jmap_endpoint;
+  string? imap_host;
+  u16? imap_port;
+  SecurityModeDto? imap_security;
+  string? smtp_host;
+  u16? smtp_port;
+  SecurityModeDto? smtp_security;
+  u32 sync_days;
+  u32 poll_interval_secs;
+};
+
+dictionary NewAccountDto {
+  string email_address;
+  string? display_name;
+  ProtocolKindDto protocol;
+  // 明文凭证（密码 / 应用专用密码 / OAuth refresh token 原文），
+  // 引擎内部立即封存，不回传、不落明文
+  string secret;
+  string? jmap_endpoint;
+  string? imap_host;
+  u16? imap_port;
+  SecurityModeDto? imap_security;
+  string? smtp_host;
+  u16? smtp_port;
+  SecurityModeDto? smtp_security;
+  u32? sync_days;
+  u32? poll_interval_secs;
+};
+
+dictionary AccountPatchDto {
+  // UDL 表达不了双层 Option，用成对的 clear_* 标记「显式置空」
+  string? display_name;
+  boolean clear_display_name;
+  u32? sync_days;
+  u32? poll_interval_secs;
+  string? jmap_endpoint;
+  string? imap_host;
+  u16? imap_port;
+  SecurityModeDto? imap_security;
+  string? smtp_host;
+  u16? smtp_port;
+  SecurityModeDto? smtp_security;
+  boolean clear_smtp;
+  string? secret;
+};
+
+dictionary DraftDto {
+  sequence<AddressDto> to;
+  sequence<AddressDto> cc;
+  sequence<AddressDto> bcc;
+  string subject;
+  string? text_body;
+  string? html_body;
+  string? in_reply_to;
+  sequence<string> references;
+};
+
+// 发信结果。`email_id` 是本地那封「已发送」邮件的 id——发送前会先落一封草稿，
+// 成功后原地转为已发送（清 Draft 标志、落「已发送」文件夹），所以 id 与草稿相同。
+dictionary SendReceiptDto {
+  string email_id;
+  // SMTP 的 Message-ID（服务器未回带时为空串）
+  string message_id;
+  timestamp sent_at;
+  // 落库所用的「已发送」文件夹 id（账号缺该文件夹时本地补占位）
+  string sent_mailbox_id;
+};
+
+dictionary DeleteOutcomeDto {
+  string email_id;
+  // true = 进回收站（可恢复），false = 本地已彻底删除
+  boolean trashed;
+};
+
+dictionary CacheStatusDto {
+  u64 usage_bytes;
+  u64 quota_bytes;
+  boolean over_quota;
+};
+
+dictionary EvictionReportDto {
+  u32 removed_count;
+  u64 freed_bytes;
+  u64 usage_after;
+  // 登记在册但不在缓存目录内的条目（只清登记、不删文件）
+  u32 foreign_entries;
+};
+
+// ------------------------------------------------ 安全渲染与可观测（S6）
+
+dictionary RenderedBodyDto {
+  string email_id;
+  // 已净化后的 HTML，可安全交给 WebView 的 loadHTMLString
+  string? html;
+  // 纯文本视图（HTML 渲染时由净化结果派生，保证与正文一致）
+  string? text;
+  // 本次是否放行了远程图片
+  boolean remote_images_allowed;
+  // 被拦截的远程资源数量与地址（用于「已阻止 N 项远程内容」提示条）
+  u32 blocked_count;
+  sequence<string> blocked_urls;
+  // 被移除的危险标签数量
+  u32 removed_tag_count;
+  // 正文是否因超长被截断
+  boolean truncated;
+  // safe / caution / danger
+  string trust_level;
+  // 面向用户的钓鱼提示，safe 时为空串
+  string trust_message;
+  string sender_domain;
+};
+
+dictionary SenderTrustDto {
+  string address;
+  string domain;
+  string level;
+  string message;
+};
+
+dictionary AllowanceDto {
+  // 被放行的发件人邮箱或可注册域
+  string sender;
+  // once / sender / domain
+  string scope;
+  // 单次放行的过期时间（RFC3339）；永久放行为 null
+  string? expires_at;
+};
+
+dictionary LogStatusDto {
+  // error / warn / info / debug / trace
+  string level;
+  // 协议报文是否记录（默认关闭）
+  boolean protocol_payload;
+  // 日志文件绝对路径（活动 + 归档）
+  sequence<string> files;
+  string? dir;
+};
+
+// ------------------------------------------------ 同步与推送（S6-16）
+
+// 一次性同步的变更摘要
+dictionary SyncReportDto {
+  u64 inserted;
+  u64 updated;
+  u64 deleted;
+  u64 unchanged;
+  boolean has_more;
+  boolean full_resync;
+  string? new_state;
+};
+
+// 单个文件夹的未读数（角标明细）
+dictionary MailboxUnreadDto {
+  string mailbox_id;
+  u64 unread;
+};
+
+enum PushEventKindDto {
+  "Synced",
+  "Failed",
+  "Closed",
+};
+
+// 一条推送事件：所有字段恒有值，UI 先看 kind 再决定读哪些字段。
+// unread_total 是同步后的全账号未读合计，未读角标直接读它，不必反查库。
+dictionary PushEventDto {
+  PushEventKindDto kind;
+  // push / resync / closing（Closed 时为空串）
+  string reason;
+  u64 inserted;
+  u64 updated;
+  u64 deleted;
+  u64 unchanged;
+  u64 unread_total;
+  sequence<MailboxUnreadDto> unread_by_mailbox;
+  u64 coalesced;
+  // Failed 时的错误文本
+  string error;
+  // Failed 可重试时的退避毫秒；不可重试/成功为 null
+  u64? retry_in_ms;
+};
+
+// UI 实现的观察回调。Rust 在**专用派发线程**调用，绝不在 tokio worker 或
+// UI 主线程直接吊住；实现方按自己平台的线程模型投递（Handler/main queue 等）。
+callback interface PushObserver {
+  void on_event(PushEventDto event);
+};
+
+// 可取消的推送订阅句柄
+interface PushSubscription {
+  void cancel();
+  boolean is_cancelled();
+};
+
+// ---------------------------------------------------------------- 引擎
+
+interface CrossMailEngine {
+  // 账号
+  [Throws=CrossMailError] sequence<AccountDto> list_accounts();
+  [Throws=CrossMailError] AccountDto get_account(string account_id);
+  [Throws=CrossMailError] AccountDto create_account(NewAccountDto input);
+  [Throws=CrossMailError] AccountDto update_account(string account_id, AccountPatchDto patch);
+  [Throws=CrossMailError] void delete_account(string account_id);
+  [Throws=CrossMailError] void rotate_secret(string account_id, string secret);
+
+  // 文件夹
+  [Throws=CrossMailError] sequence<MailboxDto> list_mailboxes(string account_id);
+  // 按角色补齐标准系统文件夹（收件箱/草稿/已发送/回收站/归档/垃圾），
+  // 本地先建占位，等服务端同步回来再对齐。首次登录后调一次即可。
+  [Throws=CrossMailError] sequence<MailboxDto> ensure_system_mailboxes(string account_id);
+  [Throws=CrossMailError] sequence<MailboxCountDto> unread_counts(string account_id);
+
+  // 邮件
+  [Throws=CrossMailError] EmailPageDto list_emails(string account_id, EmailQueryDto query);
+  [Throws=CrossMailError] EmailDto get_email(string email_id);
+  [Throws=CrossMailError] string? read_body(string email_id, boolean prefer_html);
+  [Throws=CrossMailError] EmailDto set_read(string email_id, boolean read);
+  [Throws=CrossMailError] EmailDto toggle_star(string email_id, boolean starred);
+  [Throws=CrossMailError] EmailDto move_email(string email_id, string mailbox_id);
+  [Throws=CrossMailError] EmailDto archive_email(string email_id);
+  [Throws=CrossMailError] DeleteOutcomeDto delete_email(string email_id);
+
+  // 草稿
+  [Throws=CrossMailError] EmailDto save_draft(string account_id, DraftDto draft);
+  [Throws=CrossMailError] sequence<EmailDto> list_drafts(string account_id, u32 limit);
+  [Throws=CrossMailError] EmailDto mark_sent(string draft_id, string? sent_mailbox_id);
+
+  // 发信：先落本地草稿，再走账号协议的提交通道（IMAP→SMTP / JMAP→EmailSubmission），
+  // 成功后把草稿原地转为「已发送」。失败时草稿保留在草稿箱，UI 提示后可重试。
+  [Throws=CrossMailError] SendReceiptDto send_email(string account_id, DraftDto draft);
+
+  // 搜索
+  [Throws=CrossMailError] EmailPageDto search(string account_id, string keyword, SearchScopeDto scope, u32 limit, u32 offset);
+
+  // 缓存
+  [Throws=CrossMailError] CacheStatusDto cache_status();
+  [Throws=CrossMailError] EvictionReportDto enforce_cache_quota();
+  [Throws=CrossMailError] u32 clear_cache();
+
+  // 安全渲染（S6-01 / S6-02）
+  // 读正文并净化：危险标签脚本一律过滤；远程图片默认阻断，
+  // 只有发件人在白名单内、或本次显式放行（allow_remote_once）才加载。
+  [Throws=CrossMailError] RenderedBodyDto render_body(string email_id, boolean prefer_html, boolean allow_remote_once);
+  // 只看发件人可信度（列表页/悬停提示，不读正文）
+  [Throws=CrossMailError] SenderTrustDto sender_trust(string email_id);
+  // 放行该发件人的远程图片：scope = once / sender / domain
+  [Throws=CrossMailError] string allow_sender_remote_images(string email_id, string scope);
+  // 撤销放行（清掉邮箱与域的记录），返回删除条数
+  [Throws=CrossMailError] u32 revoke_sender_remote_images(string email_id);
+  [Throws=CrossMailError] sequence<AllowanceDto> list_remote_allowances();
+
+  // 可观测（S6-04）
+  // 导出脱敏诊断包到指定目录，返回 tar 文件绝对路径
+  [Throws=CrossMailError] string export_diagnostics(string dir);
+  // 设置日志级别，返回生效的级别名
+  [Throws=CrossMailError] string set_log_level(string level);
+  // 协议报文开关（默认关闭；开启后会把 IMAP/SMTP 原文写进日志）
+  [Throws=CrossMailError] void set_protocol_payload_logging(boolean enabled);
+  [Throws=CrossMailError] LogStatusDto log_status();
+  // 立即归档当前日志（压缩旧日志），返回是否发生归档
+  [Throws=CrossMailError] boolean rotate_logs();
+
+  // 同步与推送（S6-16）
+  // 立即同步一次账号（阻塞）。按账号协议自动装配 provider，返回变更摘要。
+  [Throws=CrossMailError] SyncReportDto sync_account(string account_id);
+  // 订阅新邮件推送。立即返回句柄，事件通过 observer 在后台线程回调；
+  // 每条 Synced 事件都带同步后的未读角标。cancel() 停止订阅。
+  [Throws=CrossMailError] PushSubscription subscribe_push(string account_id, PushObserver observer);
+};
