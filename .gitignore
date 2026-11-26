@@ -1,0 +1,39 @@
+# Rust
+target/
+*.rlib
+*.rmeta
+
+# Node / Tauri
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+
+# Credentials and local state (never commit)
+master.key
+*.pfx
+*.pem
+*.key
+credentials*.txt
+crossmail-data/
+*_result.txt
+verification-report.txt
+
+# Build logs and scratch
+*.log
+full_err.txt
+*.bak
+*.bak.*
+.DS_Store
+Thumbs.db
+
+# WorkBuddy session artifacts
+.workbuddy/
