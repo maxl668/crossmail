@@ -1,0 +1,25 @@
+[package]
+name = "crossmail-service"
+description = "CrossMail 业务层：账号/邮件/草稿/搜索 + 凭证加密仓 + 正文附件缓存"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+crossmail-core.workspace = true
+crossmail-storage.workspace = true
+crossmail-sanitize.workspace = true
+crossmail-obs.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+base64.workspace = true
+chacha20poly1305 = "0.10"
+
+[dev-dependencies]
+crossmail-core.workspace = true
+crossmail-storage.workspace = true
+uuid.workspace = true
+serde_json.workspace = true
