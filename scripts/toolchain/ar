@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+"""zig ar 包装器（本机无系统 ar 时使用）。"""
+import os
+import shutil
+
+PYTHON = os.environ.get("CROSSMAIL_PYTHON") or shutil.which("python3") or "python3"
+os.execv(PYTHON, [PYTHON, "-m", "ziglang", "ar", *os.sys.argv[1:]])
