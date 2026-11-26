@@ -1,0 +1,29 @@
+[package]
+name = "crossmail-imap"
+description = "CrossMail IMAP4rev1 + SMTP 协议核心（含自动配置、Gmail 适配）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+crossmail-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+base64.workspace = true
+rustls.workspace = true
+rustls-pki-types.workspace = true
+tokio-rustls.workspace = true
+webpki-roots.workspace = true
+hickory-resolver.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+# 端到端联调用：业务层写操作 → 离线队列 → 回放 → 真实服务器
+crossmail-storage.workspace = true
+crossmail-sync.workspace = true
+crossmail-service.workspace = true
