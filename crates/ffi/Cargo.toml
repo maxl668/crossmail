@@ -1,0 +1,42 @@
+[package]
+name = "crossmail-ffi"
+description = "CrossMail uniffi 绑定层：供 Compose Multiplatform / Kotlin / Windows 调用"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "crossmail_ffi"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+default = []
+bindgen = ["uniffi/cli"]
+
+[dependencies]
+chrono.workspace = true
+crossmail-core.workspace = true
+crossmail-storage.workspace = true
+crossmail-service.workspace = true
+crossmail-app.workspace = true
+crossmail-sanitize.workspace = true
+crossmail-obs.workspace = true
+thiserror.workspace = true
+uniffi = { version = "0.28.3" }
+
+[build-dependencies]
+# UDL 单一真源：build.rs 由 UDL 生成 scaffolding，Rust 侧只写实现，
+# 避免 proc-macro 与 UDL 双份定义漂移（漂移只会在运行期炸）。
+# 用 uniffi_bindgen 而非 uniffi_build：后者未被本机 registry 缓存，
+# 而本环境沙箱禁止 utime，cargo 解压新 crate 必失败（详见 build.rs 注释）。
+uniffi_bindgen = "0.28.3"
+camino = "1"
+
+[dev-dependencies]
+uuid.workspace = true
