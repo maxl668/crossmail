@@ -1,0 +1,12 @@
+[package]
+name = "crossmail-obs"
+description = "CrossMail 可观测层：分级日志、轮转压缩、诊断包导出（OBS-001/002/003）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
