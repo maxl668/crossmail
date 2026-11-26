@@ -1,0 +1,21 @@
+[lib]
+crate-type = ["rlib", "staticlib"]
+
+[package]
+name = "crossmail-core"
+description = "CrossMail 统一领域模型、错误体系与 MailProvider 协议抽象"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
