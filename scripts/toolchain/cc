@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""纯用户态 C 编译器包装器。
+
+用 `zig cc` 顶替系统 gcc（本机无 gcc / 无 sudo）。
+cc-rs 会传 clang 风格 `--target=<rust triple>`，zig 不认，这里转成 `-target <zig triple>`。
+
+注意：zig 的 `*-windows-msvc` 目标不附带 libc 头，含 C 依赖（ring/rusqlite）
+的 crate 在纯用户态环境应改用 `*-pc-windows-gnullvm`（映射为 `*-windows-gnu`），
+其自带 MinGW libc 头。MSVC ABI 产物仅适用于纯 Rust crate，见 docs/sprint-status.md。
+
+Python 解释器可用 CROSSMAIL_PYTHON 指定；CI 中 `pip install ziglang` 后默认 python3 即可。
+"""
+import os
+import shutil
+import sys
+
+PYTHON = os.environ.get("CROSSMAIL_PYTHON") or shutil.which("python3") or "python3"
+
+ZIG_TARGETS = {
+    "x86_64-unknown-linux-gnu": "x86_64-linux-gnu",
+    "aarch64-unknown-linux-gnu": "aarch64-linux-gnu",
+    "x86_64-pc-windows-gnu": "x86_64-windows-gnu",
+    "x86_64-pc-windows-gnullvm": "x86_64-windows-gnu",
+    "aarch64-pc-windows-gnullvm": "aarch64-windows-gnu",
+    "x86_64-pc-windows-msvc": "x86_64-windows-msvc",
+    "aarch64-pc-windows-msvc": "aarch64-windows-msvc",
+    "aarch64-linux-android": "aarch64-linux-android",
+    "armv7-linux-androideabi": "arm-linux-androideabi",
+}
+
+out = []
+for arg in sys.argv[1:]:
+    if arg.startswith("--target="):
+        zig_target = ZIG_TARGETS.get(arg.split("=", 1)[1])
+        if zig_target:
+            out.extend(["-target", zig_target])
+        # 未知目标交给 zig 的默认宿主判断，避免解析失败
+    elif arg.startswith("-target") and arg != "-target":
+        out.extend(["-target", arg[len("-target") :]])
+    else:
+        out.append(arg)
+
+os.execv(PYTHON, [PYTHON, "-m", "ziglang", "cc", *out])
