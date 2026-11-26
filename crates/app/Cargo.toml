@@ -1,0 +1,22 @@
+[package]
+name = "crossmail-app"
+description = "CrossMail 编排层：provider 工厂 + 一次性同步 + 推送驱动同步（协议无关）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+crossmail-core.workspace = true
+crossmail-storage.workspace = true
+crossmail-sync.workspace = true
+crossmail-jmap.workspace = true
+crossmail-imap.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+# 仅 `examples/send_probe.rs` 用：从本地 vault 取明文凭证后再发信，
+# 避免探针在命令行里传口令。不影响生产依赖图，也不改 ABI。
+crossmail-service.workspace = true
