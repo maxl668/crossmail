@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="Platform">
+  <PropertyGroup>
+    <!-- WinUI 3 XAML 编译器在 AnyCPU 下 MarkupCompilePass2 会空引用 (WMC9999)；
+         sln 默认 "Any CPU" 配置在这里统一归一到 x64，保证整链 dotnet build -c Release 可用。 -->
+    <Platform Condition="'$(Platform)' != 'x64' and '$(Platform)' != 'ARM64'">x64</Platform>
+    <!-- SDK.props 会先用 sln 传入的 Platform 推导 PlatformTarget，必须在这里显式覆盖，
+         否则 apphost 是 x86 而 crossmail_ffi.dll 是 x64，P/Invoke 抛 BadImageFormatException。 -->
+    <PlatformTarget Condition="'$(Platform)' == 'x64'">x64</PlatformTarget>
+    <PlatformTarget Condition="'$(Platform)' == 'ARM64'">ARM64</PlatformTarget>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>CrossMail.App</RootNamespace>
+    <AssemblyName>CrossMail.App</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x86;x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <!-- Step3 先出未打包 exe；MSIX 打包在 Step4/Step5 另做 -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <DefaultLanguage>zh-CN</DefaultLanguage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.9457" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\bindings\CrossMail.Bindings\CrossMail.Bindings.csproj" />
+  </ItemGroup>
+
+  <!-- Native DLL must match $(Platform). Never copy the x64 DLL into an ARM64 package. -->
+  <PropertyGroup>
+    <NativeDllPath Condition="'$(Platform)' == 'x64'">..\..\..\crossmail\target\x86_64-pc-windows-msvc\release\crossmail_ffi.dll</NativeDllPath>
+    <NativeDllPath Condition="'$(Platform)' == 'ARM64'">..\..\..\crossmail\target\aarch64-pc-windows-msvc\release\crossmail_ffi.dll</NativeDllPath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(NativeDllPath)' != ''">
+    <None Include="$(NativeDllPath)"
+          Link="crossmail_ffi.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- If the matching native DLL is absent, MSBuild itself fails with MSB3030
+       (verified for ARM64 on 2026-11-15). No silent fallback to the x64 DLL. -->
+</Project>
