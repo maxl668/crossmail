@@ -1,0 +1,261 @@
+/* CrossMail 桌面端 v0.1 —— 浅色主题三栏布局 */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+body { font: 14px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif; color: #1f2328; background: #f6f8fa; }
+
+.app { display: flex; height: 100vh; }
+
+/* 侧栏 */
+.sidebar { width: 240px; background: #eef1f5; border-right: 1px solid #d8dee6; display: flex; flex-direction: column; padding: 12px; gap: 10px; }
+.brand { font-size: 16px; font-weight: 700; padding: 4px 6px; }
+.accounts { display: flex; flex-direction: column; gap: 4px; }
+.account { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+.account.active { background: #dbe7ff; }
+.account .proto { width: 22px; height: 22px; border-radius: 6px; background: #3b6fe0; color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none; }
+.account .addr { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.folders { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; border-top: 1px solid #d8dee6; padding-top: 8px; }
+.folder { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+.folder:hover { background: #e3e9f2; }
+.folder.active { background: #cfe0ff; font-weight: 600; }
+.badge { background: #e5484d; color: #fff; font-size: 11px; border-radius: 10px; padding: 1px 7px; }
+.sidebar-actions { display: flex; flex-direction: column; gap: 6px; }
+
+/* 按钮 */
+.btn { border: 1px solid #c9d1d9; background: #fff; border-radius: 8px; padding: 7px 12px; cursor: pointer; font-size: 13px; text-align: center; }
+.btn:hover { background: #f0f4fa; }
+.btn.primary { background: #3b6fe0; border-color: #3b6fe0; color: #fff; }
+.btn.primary:hover { background: #2f5fc4; }
+.btn.on { background: #e6f6ec; border-color: #9fd8b4; color: #1a7f37; }
+.btn.danger { color: #c62828; }
+.btn.small { padding: 4px 8px; font-size: 12px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 邮件列表 */
+.list { width: 340px; border-right: 1px solid #d8dee6; display: flex; flex-direction: column; background: #fbfcfe; }
+.list-head { padding: 12px 14px; font-weight: 700; border-bottom: 1px solid #e3e8ef; display: flex; justify-content: space-between; align-items: center; }
+.muted { color: #8b949e; font-weight: 400; font-size: 12px; }
+.list-body { flex: 1; overflow-y: auto; }
+.mail { position: relative; padding: 10px 14px; border-bottom: 1px solid #eef1f5; cursor: pointer; }
+.mail:hover { background: #f0f4fa; }
+.mail.active { background: #e7efff; }
+.mail.unread .mail-subject { font-weight: 700; }
+.mail.unread .mail-from { font-weight: 700; color: #24292f; }
+.mail-line1 { display: flex; justify-content: space-between; font-size: 12px; color: #57606a; }
+.mail-time { color: #8b949e; font-size: 11px; }
+.mail-subject { font-size: 13px; }
+.mail-preview { font-size: 12px; color: #8b949e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
+.star { position: absolute; right: 8px; top: 34px; border: none; background: none; cursor: pointer; font-size: 15px; color: #e3b341; }
+
+/* 阅读窗格 */
+.reader { flex: 1; display: flex; flex-direction: column; background: #fff; min-width: 0; }
+.reader-head { padding: 16px 20px; border-bottom: 1px solid #e3e8ef; }
+.reader-head h2 { font-size: 17px; margin-bottom: 8px; }
+.reader-head .meta { font-size: 12px; color: #57606a; display: flex; flex-direction: column; gap: 2px; }
+.reader-body { flex: 1; overflow-y: auto; padding: 20px; }
+.text-body { white-space: pre-wrap; font-family: inherit; font-size: 14px; }
+.html-body { max-width: 100%; }
+.html-body img { max-width: 100%; }
+/* v1.6：正文限宽居中 + Ctrl+滚轮缩放 */
+.reader-content { max-width: 760px; margin: 0 auto; }
+.reader-content .text-body, .reader-content .html-body { margin: 0; }
+.zoom-reset {
+  position: sticky; top: 0; float: right; z-index: 5;
+  color: var(--accent, #4f6ef7); background: var(--bg-panel, #fff);
+  border: 1px solid var(--border); border-radius: 10px; padding: 1px 8px;
+}
+.empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #8b949e; }
+
+/* 弹窗 */
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.modal { background: #fff; border-radius: 14px; padding: 20px; width: 460px; max-height: 88vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.18); }
+.modal.wide { width: 640px; display: flex; flex-direction: column; gap: 8px; }
+.modal h3 { margin-bottom: 12px; }
+.row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.row label { width: 96px; flex: none; color: #57606a; font-size: 13px; }
+.row input, .row select { flex: 1; border: 1px solid #c9d1d9; border-radius: 8px; padding: 7px 10px; font-size: 13px; }
+.modal textarea { border: 1px solid #c9d1d9; border-radius: 8px; padding: 10px; font: inherit; resize: vertical; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+/* 忙碌提示 & toast */
+.busy { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); background: #24292f; color: #fff; border-radius: 10px; padding: 8px 18px; z-index: 60; font-size: 13px; }
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #24292f; color: #fff; border-radius: 10px; padding: 8px 18px; z-index: 60; font-size: 13px; max-width: 70vw; }
+
+/* ---------- v0.2：搜索与附件 ---------- */
+.search-bar {
+  display: flex; gap: 6px; padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.search-bar input {
+  flex: 1; padding: 6px 10px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-input, #fff);
+  font-size: 12px;
+}
+.attachments {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 14px; border-top: 1px dashed var(--border);
+}
+.att {
+  padding: 5px 10px; border-radius: 6px; font-size: 12px;
+  border: 1px solid var(--border); background: var(--bg-btn, #f3f4f6);
+  cursor: pointer;
+}
+.att:hover { border-color: var(--accent, #4f6ef7); color: var(--accent, #4f6ef7); }
+
+/* ---------- v0.3：阅读操作栏与链接 ---------- */
+.reader-actions {
+  display: flex; gap: 8px; padding: 8px 14px;
+  border-top: 1px dashed var(--border);
+}
+.linklike { color: var(--accent, #4f6ef7); cursor: pointer; font-size: 12px; }
+
+/* ---------- v0.4：撰写附件 ---------- */
+.compose-atts {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 6px 14px;
+}
+.att-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 6px; font-size: 12px;
+  border: 1px solid var(--border); background: var(--bg-btn, #f3f4f6);
+}
+.att-x { border: none; background: none; cursor: pointer; padding: 0 2px; color: #888; }
+.att-x:hover { color: #c00; }
+
+/* ---------- v0.7：富文本撰写 ---------- */
+.compose-editor-head {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 14px 0;
+}
+.mode-tab {
+  padding: 3px 10px; font-size: 12px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: inherit;
+}
+.mode-tab.active {
+  background: var(--accent, #4f6ef7); color: #fff;
+  border-color: var(--accent, #4f6ef7);
+}
+.html-tools { display: inline-flex; gap: 4px; margin-left: 8px; }
+.html-tools .tool {
+  min-width: 26px; padding: 3px 6px; font-size: 12px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 6px; background: transparent;
+}
+.html-tools .tool:hover { border-color: var(--accent, #4f6ef7); }
+.compose-html {
+  margin: 6px 14px; padding: 8px 10px; min-height: 240px;
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; line-height: 1.6; overflow-y: auto;
+  background: var(--bg-input, #fff);
+  outline: none;
+}
+.compose-html:empty::before {
+  content: attr(data-placeholder);
+  color: #999;
+}
+
+/* ---------- v0.9：移动到文件夹 ---------- */
+.move-list {
+  max-height: 320px; overflow-y: auto; margin: 8px 0;
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.move-item {
+  padding: 8px 12px; font-size: 13px; cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.move-item:last-child { border-bottom: none; }
+.move-item:hover { background: var(--bg-btn, #f3f4f6); color: var(--accent, #4f6ef7); }
+
+/* ---------- v1.0：批量操作 + 账号设置 ---------- */
+.btn.tiny { padding: 2px 8px; font-size: 12px; }
+.btn.tiny.on { border-color: var(--accent, #4f6ef7); color: var(--accent, #4f6ef7); }
+.batch-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 12px; border-bottom: 1px solid var(--border);
+  background: var(--bg-btn, #f3f4f6);
+}
+.mail-check { margin: 4px 0 0 10px; flex: none; cursor: pointer; }
+.acct-settings {
+  margin-left: auto; border: none; background: none; cursor: pointer;
+  font-size: 13px; color: #888; padding: 2px 4px; border-radius: 4px;
+}
+.acct-settings:hover { color: var(--accent, #4f6ef7); background: var(--bg-btn, #f3f4f6); }
+
+/* v1.2：数据目录对话框 */
+.dataloc-info { display: flex; align-items: center; gap: 8px; margin: 6px 0; flex-wrap: wrap; }
+.dataloc-path {
+  font-family: monospace; font-size: 12px; padding: 6px 8px;
+  background: var(--bg-btn, #f3f4f6); border-radius: 6px;
+  word-break: break-all; flex: 1; min-width: 220px;
+}
+.badge {
+  font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  background: #e5e7eb; color: #555; flex: none;
+}
+.badge.warn { background: #fef3c7; color: #92400e; }
+.small-note { font-size: 12px; line-height: 1.5; margin: 8px 0; }
+
+/* v1.3：顶部菜单栏（Foxmail 风格） */
+.menubar {
+  display: flex; align-items: center; gap: 2px;
+  padding: 2px 8px; background: var(--bg-btn, #f3f4f6);
+  border-bottom: 1px solid var(--border); position: relative; z-index: 30;
+}
+.menubar-entry { position: relative; }
+.menubar-label {
+  display: inline-block; padding: 3px 10px; font-size: 13px;
+  cursor: pointer; border-radius: 4px; user-select: none;
+}
+.menubar-label:hover, .menubar-label.active { background: var(--accent, #4f6ef7); color: #fff; }
+/* v1.5：写邮件直点入口——做成主按钮样式更醒目 */
+.menubar-label.compose { color: var(--accent, #4f6ef7); font-weight: 600; }
+.menubar-label.compose:hover { background: var(--accent, #4f6ef7); color: #fff; }
+/* v1.5：账号设置里的签名编辑框 */
+textarea.sig-input {
+  flex: 1; font: inherit; padding: 6px 8px; border: 1px solid var(--border);
+  border-radius: 6px; resize: vertical; background: var(--bg-panel, #fff);
+  color: inherit;
+}
+.menu-dropdown {
+  position: absolute; top: 100%; left: 0; min-width: 220px;
+  background: var(--bg-panel, #fff); border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.15);
+  padding: 4px; z-index: 40;
+}
+.menu-item {
+  padding: 6px 12px; font-size: 13px; cursor: pointer; border-radius: 5px;
+  white-space: nowrap;
+}
+.menu-item:hover { background: var(--bg-btn, #f3f4f6); }
+.menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
+.menu-mask { position: fixed; inset: 0; z-index: 25; }
+
+/* v1.3：文件夹管理 / 收信规则 */
+.folder-list { max-height: 260px; overflow-y: auto; margin: 8px 0; }
+.folder-row {
+  display: flex; align-items: center; gap: 6px; padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.folder-row:last-child { border-bottom: none; }
+.folder-name { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
+.rule-list { max-height: 200px; overflow-y: auto; margin: 8px 0; }
+.rule-row {
+  display: flex; align-items: center; gap: 8px; padding: 5px 0;
+  border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.rule-row:last-child { border-bottom: none; }
+.rule-toggle { display: flex; align-items: center; gap: 4px; flex: none; font-size: 12px; }
+.rule-desc { flex: 1; }
+.rule-new { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 4px; }
+.test-ok { color: #16803c; }
+.test-fail { color: #c02626; }
+.btn.tiny.danger { color: #c02626; }
+
+/* v1.7：新邮件醒目提醒卡片（浏览状态） */
+.mail-alert { position: fixed; top: 18px; right: 18px; z-index: 70; cursor: pointer;
+  background: #fff; border: 1px solid #2f6fed; border-left: 4px solid #2f6fed;
+  border-radius: 10px; padding: 12px 16px; min-width: 240px;
+  box-shadow: 0 4px 18px rgba(20,40,80,.18); animation: mail-alert-in .25s ease-out; }
+.mail-alert-title { font-size: 14px; font-weight: 600; color: #1a3f8c; margin-bottom: 4px; }
+.mail-alert-body { font-size: 13px; color: #24292f; }
+.mail-alert-hint { font-size: 12px; color: #6b7280; margin-top: 6px; }
+@keyframes mail-alert-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
