@@ -1,0 +1,17 @@
+[package]
+name = "crossmail-storage"
+description = "CrossMail 本地存储：SQLite WAL、版本化迁移、元数据与离线队列"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+crossmail-core.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+crossmail-core.workspace = true
