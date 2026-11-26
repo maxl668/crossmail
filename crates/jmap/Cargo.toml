@@ -1,0 +1,26 @@
+[package]
+name = "crossmail-jmap"
+description = "CrossMail JMAP (RFC 8620/8621) 协议核心"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+crossmail-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+async-trait.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+base64.workspace = true
+tokio-tungstenite.workspace = true
+futures-util.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+# 只为 live 端到端（推送 → 增量同步 → 落库）引入：生产代码不依赖二者
+crossmail-storage.workspace = true
+crossmail-sync.workspace = true
