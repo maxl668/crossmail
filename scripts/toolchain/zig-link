@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""rustc 交叉链接器：由 CROSSMAIL_ZIG_TARGET 指定 zig 目标三元组。"""
+import os
+import shutil
+
+PYTHON = os.environ.get("CROSSMAIL_PYTHON") or shutil.which("python3") or "python3"
+target = os.environ.get("CROSSMAIL_ZIG_TARGET", "")
+args = [a for a in os.sys.argv[1:] if not a.startswith("--target=")]
+cmd = [PYTHON, "-m", "ziglang", "cc"]
+if target:
+    cmd += ["-target", target]
+cmd += args
+os.execv(PYTHON, cmd)
