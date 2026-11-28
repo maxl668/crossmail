@@ -20,3 +20,4 @@ chrono.workspace = true
 # 仅 `examples/send_probe.rs` 用：从本地 vault 取明文凭证后再发信，
 # 避免探针在命令行里传口令。不影响生产依赖图，也不改 ABI。
 crossmail-service.workspace = true
+mime_guess = "2"
