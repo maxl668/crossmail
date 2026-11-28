@@ -1233,7 +1233,7 @@ function MenuBar({ accounts, mailboxes, currentAccountId, onCompose,
         </div>
         <div className="menu-sep" />
         {item("ℹ️ 关于 CrossMail",
-          () => alert("CrossMail v1.7\nJMAP + IMAP/SMTP 双协议本地邮件客户端\n绿色便携 · 数据仅存本机"))}
+          () => alert("CrossMail v1.8\nJMAP + IMAP/SMTP 双协议本地邮件客户端\n绿色便携 · 数据仅存本机"))}
       </>
     ),
   };
