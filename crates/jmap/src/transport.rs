@@ -98,6 +98,11 @@ pub trait Transport: Send + Sync {
 /// 生产通道：reqwest + rustls（无 OpenSSL，交叉编译友好）。
 pub struct ReqwestTransport {
     client: reqwest::Client,
+    /// Blob 上传/下载专用通道（v1.8）：不设总超时。
+    /// `client` 的 30s 总超时覆盖整个请求周期（含 body 传输）——大附件经慢链路
+    /// （如 Tailscale Funnel）超过 30s 就被掐断，报「error sending request」，
+    /// 表现为「小附件能发、大附件必挂」。大传输只保留连接超时，读写不设上限。
+    io_client: reqwest::Client,
 }
 
 impl ReqwestTransport {
@@ -106,7 +111,11 @@ impl ReqwestTransport {
             .timeout(timeout)
             .build()
             .map_err(|e| MailError::Network(e.to_string()))?;
-        Ok(Self { client })
+        let io_client = reqwest::Client::builder()
+            .connect_timeout(Duration::from_secs(15))
+            .build()
+            .map_err(|e| MailError::Network(e.to_string()))?;
+        Ok(Self { client, io_client })
     }
 }
 
@@ -114,6 +123,7 @@ impl Default for ReqwestTransport {
     fn default() -> Self {
         Self::new(Duration::from_secs(30)).unwrap_or_else(|_| Self {
             client: reqwest::Client::new(),
+            io_client: reqwest::Client::new(),
         })
     }
 }
@@ -180,7 +190,8 @@ impl Transport for ReqwestTransport {
         content_type: &str,
         data: &[u8],
     ) -> MailResult<Value> {
-        let resp = request_builder(&self.client, reqwest::Method::POST, url, auth)
+        // v1.8：走 io_client（无总超时），大附件不再被 30s 掐断
+        let resp = request_builder(&self.io_client, reqwest::Method::POST, url, auth)
             .header("Content-Type", content_type)
             .body(data.to_vec())
             .send()
@@ -190,7 +201,8 @@ impl Transport for ReqwestTransport {
     }
 
     async fn download_bytes(&self, url: &str, auth: Option<&str>) -> MailResult<Vec<u8>> {
-        let resp = request_builder(&self.client, reqwest::Method::GET, url, auth)
+        // v1.8：走 io_client（无总超时），大附件下载同理
+        let resp = request_builder(&self.io_client, reqwest::Method::GET, url, auth)
             .send()
             .await
             .map_err(|e| MailError::Network(e.to_string()))?;
